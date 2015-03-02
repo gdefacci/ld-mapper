@@ -1,4 +1,4 @@
-package org.obl.jsonld
+package org.obl.ldmapper
 
 import com.fasterxml.jackson.core._
 import java.io.Writer

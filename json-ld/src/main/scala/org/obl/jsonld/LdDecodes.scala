@@ -1,4 +1,4 @@
-package org.obl.jsonld
+package org.obl.ldmapper
 
 trait LdDecodes {
 

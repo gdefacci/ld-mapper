@@ -1,4 +1,4 @@
-package org.obl.jsonld
+package org.obl.ldmapper
 
 import scalaz.{ -\/, \/, \/- }
 import java.io.Closeable

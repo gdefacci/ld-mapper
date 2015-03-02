@@ -1,4 +1,4 @@
-package org.obl.jsonld
+package org.obl.ldmapper
 
 import com.github.jsonldjava.utils.JsonUtils
 import scalaz.{-\/, \/, \/-}
@@ -11,7 +11,7 @@ import Util.rightValueSeq
 
 import collection.JavaConversions._
 
-private[jsonld] class LdObj(prefix:String, mp:Map[String,Any]) {
+private[ldmapper] class LdObj(prefix:String, mp:Map[String,Any]) {
   private val Ld = JsonLdField
 
   lazy val keys:Iterable[JsonLdField[_]] = {
@@ -63,7 +63,7 @@ private[jsonld] class LdObj(prefix:String, mp:Map[String,Any]) {
   def get(str:String):Option[Seq[Any]] = mp.get(str).map(_.asInstanceOf[java.util.List[_]].toSeq)
 }
 
-private[jsonld] class LdFieldValueFactory(toJsonLd:Any => String \/ JsonLdModel ) {
+private[ldmapper] class LdFieldValueFactory(toJsonLd:Any => String \/ JsonLdModel ) {
   private val KS = JsonLdKeywords
   private var F = JsonLdField 
   

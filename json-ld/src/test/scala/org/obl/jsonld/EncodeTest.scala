@@ -1,9 +1,9 @@
-package org.obl.jsonld
+package org.obl.ldmapper
 
 import org.obl.raz._
 import org.junit.Test
 import junit.framework.TestCase
-import org.obl.jsonld.NodeId.apply
+import org.obl.ldmapper.NodeId.apply
 import org.obl.raz.BasePath.toAbsolutePathFactory
 import org.obl.raz.BasePath.toPathSegmentAdder
 

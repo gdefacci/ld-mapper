@@ -1,4 +1,4 @@
-package org.obl.jsonld
+package org.obl.ldmapper
 package builder
 
 import org.obl.raz

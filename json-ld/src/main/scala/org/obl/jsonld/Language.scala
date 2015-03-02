@@ -1,3 +1,3 @@
-package org.obl.jsonld
+package org.obl.ldmapper
 
 case class Language(code: String)
