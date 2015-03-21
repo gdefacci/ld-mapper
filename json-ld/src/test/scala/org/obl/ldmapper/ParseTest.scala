@@ -69,7 +69,7 @@ class ParseTest extends TestCase {
     new LdPrinter("@").print(r, sw, false)
     assert( 
         sw.getBuffer().toString() ==
-        """{"http://xmlns.com/foaf/0.1/name":["Joe Bob"],"@language":"it","http://xmlns.com/foaf/0.1/nick":[{"@list":["joe","bob","joe","jaybee"]},{"@list":["pluto","minni"]},{"@index":"de","@language":"it","http://xmlns.com/foaf/0.1/name":["Razy"]}],"@type":["http://xmlns.com/foaf/0.1/Person"],"@index":"it","@id":"http://example.org/people#joebob"}"""      
+        """{"@id":"http://example.org/people#joebob","@type":["http://xmlns.com/foaf/0.1/Person"],"@language":"it","@index":"it","http://xmlns.com/foaf/0.1/nick":[{"@list":["joe","bob","joe","jaybee"]},{"@list":["pluto","minni"]},{"@language":"it","@index":"de","http://xmlns.com/foaf/0.1/name":["Razy"]}],"http://xmlns.com/foaf/0.1/name":["Joe Bob"]}"""      
     )
     
   }

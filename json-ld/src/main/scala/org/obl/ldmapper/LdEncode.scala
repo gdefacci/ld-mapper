@@ -5,7 +5,11 @@ import scalaz.{ -\/, \/, \/- }
 
 trait LdEncode[T] {
 
+  /* FIXME rename in tryEncode */
   def encode(t: T): String \/ JsonLdModel
+  
+  /* FIXME rename in encode */
+  def get(t:T):JsonLdModel = encode(t).getOrElse( throw new Exception("cant encode "+t) )
 
   def contramap[T1](f: T1 => T) = LdEncode[T1]((t1: T1) => encode(f(t1)))
 
@@ -22,9 +26,20 @@ object LdEncode extends LdEncodes {
 
   def apply[T](f: T => String \/ JsonLdModel) =
     new LdEncode[T] {
-      def encode(t: T): String \/ JsonLdModel = f(t)
+      def encode(t: T): String \/ JsonLdModel = \/.fromTryCatch( f(t) ) match {
+        case -\/(e) => -\/(e.getMessage)
+        case \/-(-\/(e)) => -\/(e)
+        case \/-(r @ \/-(_)) => r
+      }
     }
 
+  def jsonLdModel = new LdEncode[JsonLdModel] {
+    def encode(t: JsonLdModel): String \/ JsonLdModel = \/-(t)
+  }
+  
+  def jsonLdFields:LdEncode[Seq[JsonLdFieldValue[_]]] =
+    jsonLdModel.contramap(flds => LdObject(flds))
+  
   def tryEncode[T](f: T => JsonLdModel) = LdEncode[T]((t: T) => \/.fromTryCatch(f(t)).leftMap(_.getMessage))
 
   implicit val boolean = LdEncode[Boolean] { b: Boolean => \/-(LdBoolean(Set.empty, b, None, None)) }
@@ -122,6 +137,9 @@ object LdFieldEncode {
   def apply[T](f: T => String \/ Seq[JsonLdFieldValue[_]]) = new LdFieldEncode[T] {
     def encode(t: T): String \/ Seq[JsonLdFieldValue[_]] = f(t)
   }
+  
+  def jsonLdFields:LdFieldEncode[Seq[JsonLdFieldValue[_]]] =
+    LdFieldEncode( flds => \/-(flds))
 
   def tryEncode[T](f: T => Seq[JsonLdFieldValue[_]]) = LdFieldEncode[T]((t: T) => \/.fromTryCatch(f(t)).leftMap(_.getMessage))
 

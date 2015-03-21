@@ -60,7 +60,7 @@ class LdPrinter(prefix:String) {
     val flds = ldobj.fields
     flds match {
       case hd +: Seq() => hd match {
-        case JsonLdFieldValue(SetJsonLdField, els) => {
+        case JsonLdFieldValue(SetJsonLdField, els:Seq[JsonLdModel]) => {
           gen.writeStartArray()
           els.foreach(  print(_, gen) )
           gen.writeEndArray()
@@ -95,8 +95,8 @@ class LdPrinter(prefix:String) {
     gen.writeStartObject()
     fields.foreach {
       case JsonLdFieldValue(k @ IdJsonLdField, id) => gen.writeStringField(k.render(prefix), id.render)
-      case JsonLdFieldValue(k @ TypeJsonLdField, typs) => {
-        printArrayField[String](k.render(prefix), typs.toSeq.map(_.render), gen, (e,gen) => gen.writeString(e))
+      case JsonLdFieldValue(k @ TypeJsonLdField, typs:Set[NodeId]) => {
+        printArrayField[String](k.render(prefix), typs.toSeq.map( _.render), gen, (e,gen) => gen.writeString(e))
       }
       case JsonLdFieldValue(k @ LdField(path), Seq(LdContainer(LdContainerKind.set, els, None))) => {
         printArrayField[JsonLdModel](path.render, els, gen, (e,gen) => print(e, gen))

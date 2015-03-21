@@ -26,4 +26,11 @@ object Util {
     }
   }
 
+  def disjFlatten[A,B](d:A \/ (A \/ B)):A \/ B = {
+    d match {
+      case v @ -\/(_) => v
+      case \/-(v @ -\/(_)) => v
+      case \/-(\/-(b)) => \/-(b)
+    }
+  }
 }

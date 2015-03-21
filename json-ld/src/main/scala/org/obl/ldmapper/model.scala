@@ -1,6 +1,7 @@
 package org.obl.ldmapper
 
 import org.obl.raz.Path
+import collection.mutable.Buffer
 
 sealed trait JsonLdModel {
   
@@ -136,25 +137,89 @@ case class JsonLdFieldValue[T](field:JsonLdField[T], value:T) {
 
 object LdObject {
   
-  /**
-   * FIXME:gestire possibili campi duplicati
-   */
-  def groupReverseFields(fields:Seq[JsonLdFieldValue[_]]):Seq[JsonLdFieldValue[_]] = {
-    var resRev = collection.mutable.Buffer.empty[JsonLdFieldValue[_]] 
-    var retLst = collection.mutable.Buffer.empty[JsonLdFieldValue[_]] 
+  class DuplicatedIdException(val fields:Seq[JsonLdFieldValue[_]]) extends Exception
+  class DuplicatedLanguageException(val fields:Seq[JsonLdFieldValue[_]]) extends Exception
+  class DuplicatedIndexException(val fields:Seq[JsonLdFieldValue[_]]) extends Exception
+  class DuplicatedValueException(val fields:Seq[JsonLdFieldValue[_]]) extends Exception
+  class InvalidKeywordException(val keyword:String) extends Exception
+  
+  def groupFields(fields:Seq[JsonLdFieldValue[_]]):Seq[JsonLdFieldValue[_]] = {
+    var resRev = Buffer.empty[JsonLdFieldValue[_]] 
+    
+    var id:Option[NodeId] = None
+    var lang:Option[Language] = None
+    var ldValue:Option[Any] = None
+    var ldIndex:Option[String] = None
+    val typLst = collection.mutable.Set.empty[NodeId]
+    val elems = collection.mutable.ListMap.empty[String, Seq[JsonLdModel]]
+    val pathFields = collection.mutable.ListMap.empty[Path, Seq[JsonLdModel]]
     
     val revF = fields.foreach({
+      case f @ JsonLdFieldValue(IdJsonLdField, obj) => {
+        id match {
+          case None => id = Some(obj)
+          case Some(_) => throw new DuplicatedIdException(fields)
+        }
+      }
+      case f @ JsonLdFieldValue(LanguageJsonLdField, obj) => {
+        lang match {
+          case None => lang = Some(obj)
+          case Some(_) => throw new DuplicatedLanguageException(fields)
+        }
+      }
+      case f @ JsonLdFieldValue(ValueJsonLdField, obj) => {
+        ldValue match {
+          case None => ldValue = Some(obj)
+          case Some(_) => throw new DuplicatedValueException(fields)
+        }
+      }
+      case f @ JsonLdFieldValue(IndexJsonLdField, obj) => {
+        ldIndex match {
+          case None => ldIndex = Some(obj)
+          case Some(_) => throw new DuplicatedIndexException(fields)
+        }
+      }
+      case f @ JsonLdFieldValue(TypeJsonLdField, obj) => {
+        typLst ++= obj
+      }
+      case f @ JsonLdFieldValue(elsFld:ElementsJsonLdField, els) => {
+        val k = elsFld.keyword
+        elems.get(k) match {
+          case None => elems += (k -> els)
+          case Some(vs) => elems += (k -> (vs ++ els))
+        }
+      }
+      case f @ JsonLdFieldValue(LdField(path), els) => {
+        pathFields.get(path) match {
+          case None => pathFields += (path -> els)
+          case Some(vs) => pathFields += (path -> (vs ++ els))
+        }
+      }
       case f @ JsonLdFieldValue(ReverseJsonLdField, obj) => {
-    	  resRev ++= obj.fields
+        resRev ++= obj.fields
       } 
-      case x => retLst  += x 
     })
-    val revProp = if (resRev.isEmpty) Seq.empty else Seq(JsonLdFieldValue(ReverseJsonLdField, new LdObject(resRev)))
-    retLst ++ revProp
+    
+    id.map(JsonLdFieldValue(IdJsonLdField, _)).toSeq  ++
+      (if (typLst.isEmpty) Nil else List(JsonLdFieldValue(TypeJsonLdField, typLst.toSet))) ++
+      ldValue.map(JsonLdFieldValue(ValueJsonLdField, _)).toSeq ++
+      lang.map(JsonLdFieldValue(LanguageJsonLdField, _)).toSeq ++
+      ldIndex.map(JsonLdFieldValue(IndexJsonLdField, _)).toSeq ++
+      elems.map { p =>
+        p._1 match {
+          case JsonLdKeywords.set => JsonLdFieldValue(SetJsonLdField, p._2)
+          case JsonLdKeywords.list => JsonLdFieldValue(ListJsonLdField, p._2)
+          case JsonLdKeywords.graph => JsonLdFieldValue(GraphJsonLdField, p._2)
+          case x => throw new InvalidKeywordException(x)
+        }
+      } ++
+      pathFields.map(p=> JsonLdFieldValue(LdField(p._1), p._2)) ++
+      (if (resRev.isEmpty) Nil else Seq(JsonLdFieldValue(ReverseJsonLdField, new LdObject(resRev))))
+    
   }
   
   def apply(fields:Seq[JsonLdFieldValue[_]]) = 
-    new LdObject(groupReverseFields(fields))
+    new LdObject(groupFields(fields))
 }
 
 class LdObject private (override val fields:Seq[JsonLdFieldValue[_]]) extends JsonLdModel {

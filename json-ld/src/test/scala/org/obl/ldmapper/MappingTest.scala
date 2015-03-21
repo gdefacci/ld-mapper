@@ -5,6 +5,8 @@ import builder._
 import junit.framework.TestCase
 import org.junit.Test
 
+import ToLd._
+
 class MappingTest extends TestCase with LdConversions {
 
   def jsonLdPrefix: String = "@"
@@ -38,14 +40,18 @@ class MappingTest extends TestCase with LdConversions {
   @Test
   def testMapping = {
 
- 
     implicit lazy val personEncode = person.toLdEncode.contramap[OutPerson](OutPerson.unapply(_).get)
     implicit lazy val personDecode = person.toLdDecode.map(InPerson.tupled)
 
     val pers1 = OutPerson(Raz / "id", "my name", Raz / "myHomepage", Raz / "img", Raz / "openid")
 
+    val ldv = toJsonLd(pers1)
+    
+    assert(ldv.obj.nonEmpty)
+    
+    
     assert(pers1.jsonLdRender() ==
-      """{"@id":"/id","http://xmlns.com/foaf/0.1/name":["my name"],"http://xmlns.com/foaf/0.1/homepage":["/myHomepage"],"http://xmlns.com/foaf/0.1/img":["/img"],"http://xmlns.com/foaf/0.1/openid":["/openid"]}""")
+      """{"@id":"/id","http://xmlns.com/foaf/0.1/openid":["/openid"],"http://xmlns.com/foaf/0.1/homepage":["/myHomepage"],"http://xmlns.com/foaf/0.1/name":["my name"],"http://xmlns.com/foaf/0.1/img":["/img"]}""")
 
     val str = """
 {

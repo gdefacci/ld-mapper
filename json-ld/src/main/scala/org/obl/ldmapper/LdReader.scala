@@ -139,7 +139,6 @@ object LdReadStrategy {
       Try {
         val options = new JsonLdOptions
         var res = JsonLdProcessor.flatten(obj, options)
-        println(s">>>> $res")
         toJsonLdModel(res)
       } match {
         case Success(v) => v

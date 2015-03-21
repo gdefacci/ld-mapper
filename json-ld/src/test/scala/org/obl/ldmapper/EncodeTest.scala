@@ -161,7 +161,7 @@ class EncodeTest extends TestCase {
     new LdPrinter("@").print(minniLd, sw, false)
     assert(
       sw.getBuffer().toString ==
-      """{"http://my-site.com/myapp/name":["minni"],"http://my-site.com/myapp/pluto":[{"@id":"http://my-site.com/myapp/pluto/pluto"}],"http://my-site.com/myapp/nick":["mo","ea"]}"""     
+      """{"http://my-site.com/myapp/nick":["mo","ea"],"http://my-site.com/myapp/name":["minni"],"http://my-site.com/myapp/pluto":[{"@id":"http://my-site.com/myapp/pluto/pluto"}]}"""     
     )
   }
   

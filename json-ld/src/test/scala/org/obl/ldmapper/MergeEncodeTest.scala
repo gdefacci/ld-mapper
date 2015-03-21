@@ -39,7 +39,7 @@ class MergeEncodeTest extends TestCase with LdConversions {
     
     implicit val me = LdMergeEncode.merge(infAEnc, infBEnc)
     
-    val exp = """{"http://myapp.com/a":["str a1","str a2"],"http://myapp.com/b":[12.0],"http://myapp.com/c":["c prop"]}"""
+    val exp = """{"http://myapp.com/c":["c prop"],"http://myapp.com/b":[12.0],"http://myapp.com/a":["str a1","str a2"]}"""
     
     assert( (i1 -> i2).jsonLdRender() == exp )
     
