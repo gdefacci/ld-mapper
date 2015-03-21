@@ -37,6 +37,6 @@ trait LdConversions {
     def parseJsonLd[T](implicit d:LdDecode[T]) = readJsonLd[T](text)
   }
   
-  def readJsonLd[T](v: String)(implicit ej: LdDecode[T]): String \/ T = 
+  def readJsonLd[T](v: String)(implicit ej: LdDecode[T]): Throwable \/ T = 
     LdReader.fromString(jsonLdPrefix).read(v, LdReadStrategy.Expanded).flatMap(jsonModel => ej.decode(jsonModel))
 }

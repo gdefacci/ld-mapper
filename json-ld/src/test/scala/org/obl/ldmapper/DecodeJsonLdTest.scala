@@ -8,7 +8,7 @@ import junit.framework.TestCase
 
 class DecodeJsonLdTest {
 
-  def fail[T](msg: String): T = throw new Exception(msg)
+  def fail[T](e: Throwable): T = throw e
 
   lazy val reader = LdReader.fromString()
 
@@ -56,7 +56,7 @@ class DecodeJsonLdTest {
 
     reader.decode(rawLd2, LdReadStrategy.Expanded)(cd).fold(
       err => (),
-      v => fail(""))
+      v => ???)
 
   
   }

@@ -4,7 +4,7 @@ import org.obl.raz.Path
 import scalaz.{ -\/, \/, \/- }
 
 trait LdDecode[T] {
-  def decode(j: JsonLdModel): String \/ T
+  def decode(j: JsonLdModel): Throwable \/ T
 
   private def container(ck: LdContainerKind): LdDecode[Seq[T]] = {
     LdDecode.partial[Seq[T]]("json ld " + ck, {
@@ -38,16 +38,18 @@ trait LdDecode[T] {
 }
 
 object LdDecode extends LdDecodes {
-  def apply[T](f: JsonLdModel => String \/ T) = {
+  class LdDecodeException(from:Any, targetDescription:String) extends Exception(s"cant convert $from to $targetDescription")
+  
+  def apply[T](f: JsonLdModel => Throwable \/ T) = {
     new LdDecode[T] {
-      def decode(j: JsonLdModel): String \/ T = f(j)
+      def decode(j: JsonLdModel): Throwable \/ T = f(j)
     }
   }
 
-  def partial[T](desc: String, pf: PartialFunction[JsonLdModel, String \/ T]) = {
+  def partial[T](desc: String, pf: PartialFunction[JsonLdModel, Throwable \/ T]) = {
     LdDecode[T] { v: JsonLdModel =>
       if (pf.isDefinedAt(v)) pf(v)
-      else -\/("cant convert " + v + "to " + desc)
+      else -\/(new LdDecodeException(v,desc))
     }
   }
 
@@ -71,7 +73,7 @@ object LdDecode extends LdDecodes {
     LdDecode[Path] { mdl: JsonLdModel =>
       UriParseUtil.parseUrl(str).map { pth =>
         \/-(pth)
-      } getOrElse -\/(s"invalid path $str")
+      } getOrElse -\/(new LdDecodeException(str, "url"))
     }
   }
 
@@ -80,14 +82,14 @@ object LdDecode extends LdDecodes {
       obj.id.map { id =>
         path.decode(LdString(Set.empty, id.render, None, None))
       }
-    } getOrElse -\/(s"invalid path $jsonLdModel")
+    } getOrElse -\/(new LdDecodeException(jsonLdModel, "link"))
   })
 
   val nodeId = string.flatMap { str =>
     LdDecode[NodeId] { mdl: JsonLdModel =>
       UriParseUtil.parseNodeId(str).map { pth =>
         \/-(pth)
-      } getOrElse -\/(s"invalid path $str")
+      } getOrElse -\/(new LdDecodeException(str, "link"))
     }
   }
 
@@ -96,18 +98,18 @@ object LdDecode extends LdDecodes {
       obj.id.map { id =>
         nodeId.decode(LdString(Set.empty, id.render, None, None))
       }
-    } getOrElse -\/(s"invalid path $jsonLdModel")
+    } getOrElse -\/(new LdDecodeException(jsonLdModel, "link"))
   })
 
   def enum[E <: Enumeration](e: E) = {
     partial[E#Value](e.toString, {
       case LdString(_, v, _, _) => \/.fromTryCatch({
         e.values.find(itm => itm == v).getOrElse(throw new Exception(v + "is not an " + e.toString))
-      }).leftMap(_.getMessage())
+      })
     })
   }
 
-  def withError[T](f: String => String)(implicit ld: LdDecode[T]) = {
+  def withError[T](f: Throwable => Throwable)(implicit ld: LdDecode[T]) = {
     LdDecode[T] { mdl: JsonLdModel =>
       ld.decode(mdl).leftMap(f)
     }
@@ -118,7 +120,7 @@ object LdDecode extends LdDecodes {
       d1.decode(mdl) match {
         case -\/(err1) => d2.decode(mdl) match {
           case \/-(v) => \/-(\/-(v))
-          case -\/(err2) => -\/(s"Either error: (1) $err1, (2) $err2")
+          case -\/(err2) => -\/(new LdDecodeException(mdl, "either"))
         }
         case \/-(v) => \/-(-\/(v))
       }
@@ -129,9 +131,9 @@ object LdDecode extends LdDecodes {
 trait LdFieldDecode[T] {
   type F
   def field: JsonLdField[F]
-  protected def decode(j: Option[F]): String \/ T
+  protected def decode(j: Option[F]): Throwable \/ T
 
-  def apply(js: JsonLdModel): String \/ T = {
+  def apply(js: JsonLdModel): Throwable \/ T = {
     decode(js.getField(field))
   }
 
@@ -166,33 +168,42 @@ trait GenericLdFieldDecode[E, T] extends LdFieldDecode[T] {
 }
 
 object LdFieldDecode {
-  def apply[F1, T](fld: JsonLdField[F1], f: Option[F1] => String \/ T) =
+  
+  class LdMissingFieldException(fld: JsonLdField[_]) extends Exception(s"$fld is missing")
+  class SingleValueException(fld: JsonLdField[_], values:Seq[JsonLdModel]) extends Exception(s"$fld expecting a single value, got $values")
+  class LdFieldException(fld: JsonLdField[_], cause:Throwable) extends Exception(s"error reding field $fld ", cause) 
+  
+  object LdFieldException {
+    def apply(fld: JsonLdField[_], msg:String) = new LdFieldException(fld, new Exception(msg))
+  }
+  
+  def apply[F1, T](fld: JsonLdField[F1], f: Option[F1] => Throwable \/ T) =
     new GenericLdFieldDecode[F1, T] {
       val field: JsonLdField[F] = fld
-      def decode(j: Option[F]): String \/ T = f(j)
+      def decode(j: Option[F]): Throwable \/ T = f(j)
     }
 
   def jsonldField[T](fld: JsonLdField[T]): LdFieldDecode[T] =
     apply(fld, (v: Option[T]) => v match {
-      case None => -\/("cant find " + fld)
+      case None => -\/(new LdMissingFieldException(fld))
       case Some(nid) => \/-(nid)
     })
 
-  def tryDecode[F1, T](fld: JsonLdField[F1], f: F1 => String \/ T): GenericLdFieldDecode[F1, T] = {
+  def tryDecode[F1, T](fld: JsonLdField[F1], f: F1 => Throwable \/ T): GenericLdFieldDecode[F1, T] = {
     apply(fld, (v: Option[F1]) => v match {
-      case None => -\/("cant find " + fld)
+      case None => -\/(new LdMissingFieldException(fld))
       case Some(nid) => f(nid)
     })
   }
 
   def mandatory[F1, T](fld: JsonLdField[F1], f: F1 => T): GenericLdFieldDecode[F1, T] =
-    tryDecode(fld, v => \/.fromTryCatch(f(v)).leftMap(_.getMessage))
+    tryDecode(fld, v => \/.fromTryCatch(f(v)))
 
   def set[T](fld: Path)(implicit dec: LdDecode[T]): GenericLdFieldDecode[Seq[JsonLdModel], Seq[T]] = {
     LdFieldDecode[Seq[JsonLdModel], Seq[T]](LdField(fld), { optf: Option[Seq[JsonLdModel]] =>
       optf match {
         case Some(vs) => {
-          val r1:Seq[scalaz.\/[String,Seq[T]]]  = vs.map {
+          val r1:Seq[Throwable \/ Seq[T]]  = vs.map {
             case LdContainer(LdContainerKind.set, els, _) => {
               Util.rightValueSeq(els.map( v => dec.decode(v) ) )
             }
@@ -207,7 +218,7 @@ object LdFieldDecode {
             }).flatten)
           } 
         }
-        case x => -\/("cant find field " + fld)
+        case x => -\/(new LdMissingFieldException(LdField(fld)))
       }
     })
   }
@@ -216,16 +227,16 @@ object LdFieldDecode {
     apply(fld)(dec.list)
 
   def apply[T](fld: Path)(implicit dec: LdDecode[T]): GenericLdFieldDecode[Seq[JsonLdModel], T] = {
-    singleElement[T](LdField(fld))(LdDecode.withError[T](verr => s"Error reading property $fld: $verr"))
+    singleElement[T](LdField(fld))(LdDecode.withError[T](verr => new LdFieldException(LdField(fld), verr))) //  s"Error reading property $fld: $verr"))
   }
 
   def singleElement[T](fld: JsonLdField[Seq[JsonLdModel]])(implicit dec1: LdDecode[T]): GenericLdFieldDecode[Seq[JsonLdModel], T] = {
-    val dec = LdDecode.withError[T](verr => s"Error reading field $fld: $verr")
+    val dec = LdDecode.withError[T](verr => new LdFieldException(fld, verr))
     LdFieldDecode[Seq[JsonLdModel], T](fld, { optf: Option[Seq[JsonLdModel]] =>
       optf match {
         case Some(v) if v.length == 1 => dec.decode(v.head)
-        case Some(v) => -\/(s"expecting only an element got $v")
-        case x => -\/("cant find field " + fld)
+        case Some(v) => -\/(new SingleValueException(fld, v))
+        case x => -\/(new LdMissingFieldException(fld))
       }
     })
   }
@@ -234,7 +245,7 @@ object LdFieldDecode {
 
   def id: GenericLdFieldDecode[NodeId, Path] = tryDecode(IdJsonLdField, (id: NodeId) => id match {
     case PathNodeId(path) => \/-(path)
-    case x => -\/("invalid @id " + id)
+    case x => -\/(new LdFieldException(IdJsonLdField, new LdDecode.LdDecodeException(x, "@id")))
   })
 
   def ldtype: GenericLdFieldDecode[Set[NodeId], Set[NodeId]] = mandatory(TypeJsonLdField, (id: Set[NodeId]) => id)
