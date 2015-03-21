@@ -5,16 +5,14 @@ import scalaz.{ -\/, \/, \/- }
 
 trait LdEncode[T] {
 
-  /* FIXME rename in tryEncode */
-  def encode(t: T): Throwable \/ JsonLdModel
+  def tryEncode(t: T): Throwable \/ JsonLdModel
   
-  /* FIXME rename in encode */
-  def get(t:T):JsonLdModel = encode(t).getOrElse( throw new Exception("cant encode "+t) )
+  def encode(t:T):JsonLdModel = tryEncode(t).getOrElse( throw new Exception("cant encode "+t) )
 
-  def contramap[T1](f: T1 => T) = LdEncode[T1]((t1: T1) => encode(f(t1)))
+  def contramap[T1](f: T1 => T) = LdEncode[T1]((t1: T1) => tryEncode(f(t1)))
 
   private def container(knd: LdContainerKind): LdEncode[Seq[T]] =
-    LdEncode[Seq[T]]((sq: Seq[T]) => Util.rightValueSeq(sq.map(encode)).map{ v => 
+    LdEncode[Seq[T]]((sq: Seq[T]) => Util.rightValueSeq(sq.map(tryEncode)).map{ v => 
       LdContainer(knd, v, None)
     })
 
@@ -26,11 +24,11 @@ object LdEncode extends LdEncodes {
 
   def apply[T](f: T => Throwable \/ JsonLdModel) =
     new LdEncode[T] {
-      def encode(t: T): Throwable \/ JsonLdModel = Util.disjFlatten( \/.fromTryCatch( f(t) ) ) 
+      def tryEncode(t: T): Throwable \/ JsonLdModel = Util.disjFlatten( \/.fromTryCatch( f(t) ) ) 
     }
 
   def jsonLdModel = new LdEncode[JsonLdModel] {
-    def encode(t: JsonLdModel): Throwable \/ JsonLdModel = \/-(t)
+    def tryEncode(t: JsonLdModel): Throwable \/ JsonLdModel = \/-(t)
   }
   
   def jsonLdFields:LdEncode[Seq[JsonLdFieldValue[_]]] =
@@ -58,7 +56,7 @@ object LdEncode extends LdEncodes {
 
   def append[T](ec: LdEncode[T], f: T => Throwable \/ Seq[JsonLdFieldValue[_]]): LdEncode[T] = {
     LdEncode[T] { t: T =>
-      ec.encode(t).flatMap { jsonModel: JsonLdModel =>
+      ec.tryEncode(t).flatMap { jsonModel: JsonLdModel =>
         f(t).map { flds =>
           if (flds.isEmpty) jsonModel
           else jsonModel.fold(
@@ -72,7 +70,7 @@ object LdEncode extends LdEncodes {
 
   def prepend[T](f: T => Throwable \/ Seq[JsonLdFieldValue[_]], ec: LdEncode[T]): LdEncode[T] = {
     LdEncode[T] { t: T =>
-      ec.encode(t).flatMap { jsonModel: JsonLdModel =>
+      ec.tryEncode(t).flatMap { jsonModel: JsonLdModel =>
         f(t).map { flds =>
           jsonModel.fold(
             leaf => LdObject(flds ++ leaf.fields),
@@ -107,22 +105,22 @@ object LdEncode extends LdEncodes {
   def either[T1, T2](d1:LdEncode[T1], d2:LdEncode[T2]):LdEncode[T1\/ T2] = {
     LdEncode[T1 \/ T2] { (t:T1 \/ T2) =>
       t match {
-        case -\/(v) => d1.encode(v)
-        case \/-(v) => d2.encode(v)
+        case -\/(v) => d1.tryEncode(v)
+        case \/-(v) => d2.tryEncode(v)
       }
     }
   }
 }
 
 trait LdFieldEncode[T] {
-  def encode(t: T): Throwable \/ Seq[JsonLdFieldValue[_]]
+  def tryEncode(t: T): Throwable \/ Seq[JsonLdFieldValue[_]]
 
-  def contramap[T1](f: T1 => T) = LdFieldEncode[T1]((t1: T1) => encode(f(t1)))
+  def contramap[T1](f: T1 => T) = LdFieldEncode[T1]((t1: T1) => tryEncode(f(t1)))
 
   def opt = LdFieldEncode[Option[T]] { ov: Option[T] =>
     ov match {
       case None => \/-(Nil)
-      case Some(v) => encode(v)
+      case Some(v) => tryEncode(v)
     }
   }
 
@@ -131,7 +129,7 @@ trait LdFieldEncode[T] {
 object LdFieldEncode {
 
   def apply[T](f: T => Throwable \/ Seq[JsonLdFieldValue[_]]) = new LdFieldEncode[T] {
-    def encode(t: T): Throwable \/ Seq[JsonLdFieldValue[_]] = f(t)
+    def tryEncode(t: T): Throwable \/ Seq[JsonLdFieldValue[_]] = f(t)
   }
   
   def jsonLdFields:LdFieldEncode[Seq[JsonLdFieldValue[_]]] =
@@ -167,7 +165,7 @@ object LdFieldEncode {
   def set[T](nd:Path)(implicit ec:LdEncode[T]):LdFieldEncode[Seq[T]] =
     LdFieldEncode[Seq[T]]((ts:Seq[T]) => { 
       val r:Throwable \/ Seq[JsonLdModel] = Util.rightValueSeq(ts.map { t =>
-        ec.encode(t)
+        ec.tryEncode(t)
       })
       r.map( v => Seq(JsonLdFieldValue(LdField(nd), Seq(LdContainer(LdContainerKind.set, v, None)) )))
     })
@@ -179,7 +177,7 @@ object LdFieldEncode {
 
   def reverse[T](f: T => Path)(implicit ec: LdEncode[T]): LdFieldEncode[T] = {
     LdFieldEncode[T] { t: T =>
-      ec.encode(t).map { rv: JsonLdModel =>
+      ec.tryEncode(t).map { rv: JsonLdModel =>
         val rvv = rv match {
           case LdContainer(_, elems, _) => elems
           case x => Seq(x)
@@ -191,7 +189,7 @@ object LdFieldEncode {
 
   def apply[T](nd: Path)(implicit ec: LdEncode[T]): LdFieldEncode[T] =
     LdFieldEncode[T]((t: T) => {
-      val encv = ec.encode(t)
+      val encv = ec.tryEncode(t)
       encv.map((v: JsonLdModel) => {
         Seq(JsonLdFieldValue(LdField(nd), Seq(v)))
       })

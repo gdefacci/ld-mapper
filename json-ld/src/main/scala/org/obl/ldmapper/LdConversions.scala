@@ -5,7 +5,7 @@ import scalaz.{ -\/, \/, \/- }
 import scala.language.implicitConversions
 
 class ToLd[T](v: T)(implicit ej: LdEncode[T]) {
-  def toJsonLd: JsonLdModel = ej.encode(v) match {
+  def toJsonLd: JsonLdModel = ej.tryEncode(v) match {
     case -\/(err) => throw new Exception(s"Error rendering to jsonld \nobject:$v\nerror:$err")
     case \/-(v) => v
   }
@@ -26,7 +26,7 @@ trait LdConversions {
   
   implicit class ToLd[T](v: T)(implicit ej: LdEncode[T]) extends org.obl.ldmapper.ToLd[T](v) {
     
-    def jsonLdRender(pretty:Boolean = false): String = ej.encode(v).map(mdl => LdPrinter.print(mdl, jsonLdPrefix, pretty)) match {
+    def jsonLdRender(pretty:Boolean = false): String = ej.tryEncode(v).map(mdl => LdPrinter.print(mdl, jsonLdPrefix, pretty)) match {
       case -\/(err) => throw new Exception(s"Error rendering to jsonld \nobject:$v\nerror:$err")
       case \/-(v) => v
     }

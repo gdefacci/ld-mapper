@@ -18,7 +18,7 @@ class EncodeTest extends TestCase {
   val r = (Raz / "myapp").at(HTTP("my-site.com"))
 
   def checkSym[T](m:T, enc:LdEncode[T], dec:LdDecode[T]) {
-	    var ld = enc.encode(m).toOption.get
+	    var ld = enc.tryEncode(m).toOption.get
       val r = dec.decode(ld) 
       r match {
         case -\/(err) => throw new RuntimeException(err)
@@ -108,7 +108,7 @@ class EncodeTest extends TestCase {
     val cl0Dec = LdDecode(LdFieldDecode.set[String](r / "nick")).map(Cl0.apply)
     
 	  val cl0 = Cl0(Seq("mi", "mo", "mah"))
-	  val cl0Ld:JsonLdModel = cl0Enc.encode(cl0).toOption.get
+	  val cl0Ld:JsonLdModel = cl0Enc.tryEncode(cl0).toOption.get
 
 	  checkSym(cl0, cl0Enc, cl0Dec)
 
@@ -130,7 +130,7 @@ class EncodeTest extends TestCase {
     val cl0Dec = LdDecode(LdFieldDecode.list[String](r / "nick")).map(Cl0.apply)
     
     val cl0 = Cl0(Seq("mi", "mo", "mah"))
-    val cl0Ld = cl0Enc.encode(cl0).toOption.get
+    val cl0Ld = cl0Enc.tryEncode(cl0).toOption.get
     
     checkSym(cl0, cl0Enc, cl0Dec)
   }
@@ -141,7 +141,7 @@ class EncodeTest extends TestCase {
     
     val minni = Minni("minni", Pluto("pluto", 12), Seq("mo", "ea"))
 
-    val minniLd = minniEnc.encode(minni).toOption.get
+    val minniLd = minniEnc.tryEncode(minni).toOption.get
 
     val sw = new java.io.StringWriter()
     new LdPrinter("@").print(minniLd, sw, true)
@@ -155,7 +155,7 @@ class EncodeTest extends TestCase {
     
     val minni = Minni("minni", Pluto("pluto", 12), Seq("mo", "ea"))
 
-    val minniLd = minniEnc.encode(minni).toOption.get
+    val minniLd = minniEnc.tryEncode(minni).toOption.get
 
     val sw = new java.io.StringWriter()
     new LdPrinter("@").print(minniLd, sw, false)
@@ -171,7 +171,7 @@ class EncodeTest extends TestCase {
     
     val minni = Minni("minni", Pluto("pluto", 12), Seq("mo", "ea"))
 
-    val minniLd = minniEnc.encode(minni).toOption.get
+    val minniLd = minniEnc.tryEncode(minni).toOption.get
 
     val sw = new java.io.StringWriter()
     new LdPrinter("@").print(minniLd, sw, true)
