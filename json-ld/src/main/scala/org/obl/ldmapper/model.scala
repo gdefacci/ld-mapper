@@ -35,8 +35,6 @@ sealed trait JsonLdModel {
     case ldn:LdString => ldn
   })
   
-//  private val F = JsonLdField
-  
   def fields:Seq[JsonLdFieldValue[_]] = {
     id.map(JsonLdFieldValue(IdJsonLdField,_)).toSeq ++ 
     (if (ldtype.isEmpty) Nil else Seq(JsonLdFieldValue(TypeJsonLdField, ldtype))) ++

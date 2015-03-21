@@ -4,12 +4,15 @@ import org.obl.raz.Path
 import scalaz.{ -\/, \/, \/- }
 
 object LdMerge {
+  
+  class LdMergeException(objs:Seq[JsonLdModel]) extends Exception(s"cant merge json ld elements ${objs.mkString("\n")}")
+  class LdMergeFieldException(fld: JsonLdField[_], objs:Seq[JsonLdModel]) extends Exception(s"${objs} contains a item with a different value for field $fld")
 
-  def merge(objs:Seq[JsonLdModel]): String \/ LdObject = {
+  def merge(objs:Seq[JsonLdModel]): Throwable \/ LdObject = {
     val oobjs = objs.collect({
       case o:LdObject => o
     })
-    lazy val error = -\/(s"cant merge json ld elements ${objs.mkString("\n")}")
+    lazy val error = -\/(new LdMergeException(objs))
     
     if (oobjs.length == objs.length) { 
       mergeObjects(oobjs).flatMap(_ match {
@@ -20,8 +23,8 @@ object LdMerge {
       error
   }
   
-  def mergeObjects(objs:Seq[LdObject]): String \/ Option[LdObject] = {
-    def checkSameIfBoth[T](fld: JsonLdField[T]): String \/ Option[JsonLdFieldValue[T]] = {
+  def mergeObjects(objs:Seq[LdObject]): Throwable \/ Option[LdObject] = {
+    def checkSameIfBoth[T](fld: JsonLdField[T]): Throwable \/ Option[JsonLdFieldValue[T]] = {
       val ids:Seq[T] = objs.map( _.getField(fld) ).collect({
         case Some(x) => x
       })
@@ -29,20 +32,20 @@ object LdMerge {
         case lst if lst.isEmpty => \/-(None)
         case hd +: rest => {
           rest.find(i => i != hd).
-          	map(i => -\/(s"${objs} contains a item with a different value for field $fld")).
+          	map(i => -\/(new LdMergeFieldException(fld, objs))).
           	getOrElse(\/-(Some(JsonLdFieldValue(fld, hd))))
         }
       }
     }
 
-    def mergeTypes: String \/ JsonLdFieldValue[Set[NodeId]] = 
+    def mergeTypes: Throwable \/ JsonLdFieldValue[Set[NodeId]] = 
       \/-(JsonLdFieldValue(TypeJsonLdField, objs.flatMap(_.ldtype).toSet))
 
-    def mergeElements(fld: JsonLdField[Seq[JsonLdModel]]): String \/ JsonLdFieldValue[Seq[JsonLdModel]] = {
+    def mergeElements(fld: JsonLdField[Seq[JsonLdModel]]): Throwable \/ JsonLdFieldValue[Seq[JsonLdModel]] = {
       \/-(JsonLdFieldValue(fld, objs.flatMap(obj => obj.getField(fld).toSeq.flatten) ))
     }
 
-    def mergeReverse: String \/ Option[JsonLdFieldValue[LdObject]] = {
+    def mergeReverse: Throwable \/ Option[JsonLdFieldValue[LdObject]] = {
       val rps = objs.map(_.getField(ReverseJsonLdField)).collect({
         case Some(x) => x
       })
