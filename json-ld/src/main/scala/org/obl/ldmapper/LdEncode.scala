@@ -11,25 +11,25 @@ trait LdEncode[T] {
   
   def encode(t:T):JsonLdModel = tryEncode(t).getOrElse( throw new Exception("cant encode "+t) )
 
-  def contramap[T1](f: T1 => T):Self[T1] = encoderFactory[T1]((t1: T1) => tryEncode(f(t1)))
+  def contramap[T1](f: T1 => T):LdEncodeSelf[T1] = encoderFactory[T1]((t1: T1) => tryEncode(f(t1)))
 
-  private def container(knd: LdContainerKind): Self[Seq[T]] =
-    encoderFactory((sq: Seq[T]) => Util.rightValueSeq(sq.map(tryEncode)).map{ v => 
-      LdContainer(knd, v, None)
-    })
+//  private def container(knd: LdContainerKind): LdEncodeSelf[Seq[T]] =
+//    encoderFactory((sq: Seq[T]) => Util.rightValueSeq(sq.map(tryEncode)).map{ v => 
+//      LdContainer(knd, v, None)
+//    })
 
-  def set: Self[Seq[T]] = container(LdContainerKind.set)
-  def list: Self[Seq[T]] = container(LdContainerKind.list)
+//  def set: LdEncodeSelf[Seq[T]] = container(LdContainerKind.set)
+//  def list: LdEncodeSelf[Seq[T]] = container(LdContainerKind.list)
   
-  type Self[T1] <: LdEncode[T1]
-  protected def encoderFactory[T1](f: T1 => Throwable \/ JsonLdModel):Self[T1]
+  type LdEncodeSelf[T1] <: LdEncode[T1]
+  protected def encoderFactory[T1](f: T1 => Throwable \/ JsonLdModel):LdEncodeSelf[T1]
   
 }
 
 object LdEncode extends LdEncodes {
 
   class BaseLdEncode[T] {
-    type Self[T1] = LdEncode[T1]
+    type LdEncodeSelf[T1] = LdEncode[T1]
     def encoderFactory[T1](f: T1 => Throwable \/ JsonLdModel):LdEncode[T1] = LdEncode[T1](f)
   }
   
@@ -119,6 +119,15 @@ object LdEncode extends LdEncodes {
       }
     }
   }
+  
+  def container[T](knd: LdContainerKind)(implicit enc:LdEncode[T]): LdEncode[Seq[T]] =
+    LdEncode((sq: Seq[T]) => Util.rightValueSeq(sq.map(enc.tryEncode)).map{ v => 
+      LdContainer(knd, v, None)
+    })
+    
+  def set[T](implicit enc:LdEncode[T]): LdEncode[Seq[T]] = container(LdContainerKind.set)
+  def list[T](implicit enc:LdEncode[T]): LdEncode[Seq[T]] = container(LdContainerKind.list)
+  
 }
 
 trait LdFieldEncode[T] {
@@ -177,7 +186,7 @@ object LdFieldEncode {
     })
   
   def list[T](nd: Path)(implicit ec: LdEncode[T]): LdFieldEncode[Seq[T]] = 
-    LdFieldEncode.apply[Seq[T]](nd)(ec.list)
+    LdFieldEncode.apply[Seq[T]](nd)(LdEncode.list(ec))
 
   def reverse[T](path: Path)(implicit ec: LdEncode[T]): LdFieldEncode[T] = reverse[T]((t: T) => path)(ec)
 

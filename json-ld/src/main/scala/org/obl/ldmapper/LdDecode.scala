@@ -8,10 +8,10 @@ import scala.language.higherKinds
 trait LdDecode[T] {
   def decode(j: JsonLdModel): Throwable \/ T
 
-  type Self[T1] <: LdDecode[T1]
-  def  decoderFactory[T1](f: JsonLdModel => Throwable \/ T1):Self[T1]
+  type LdDecodeSelf[T1] <: LdDecode[T1]
+  def  decoderFactory[T1](f: JsonLdModel => Throwable \/ T1):LdDecodeSelf[T1]
   
-  private def container(ck: LdContainerKind): Self[Seq[T]] = {
+  private def container(ck: LdContainerKind): LdDecodeSelf[Seq[T]] = {
     decoderFactory[Seq[T]] { v: JsonLdModel =>
       v match {
         case LdContainer(kind, lst, _) => Util.rightValueSeq(lst.map(this.decode))
@@ -20,7 +20,7 @@ trait LdDecode[T] {
     }
   }
 
-  def orElse(othr: => LdDecode[T]): Self[T] = {
+  def orElse(othr: => LdDecode[T]): LdDecodeSelf[T] = {
     val self = this
     decoderFactory[T] { mdl: JsonLdModel =>
       self.decode(mdl) match {
@@ -32,12 +32,12 @@ trait LdDecode[T] {
     }
   }
 
-  def list = container(LdContainerKind.list)
-  def set = container(LdContainerKind.set)
+//  def list = container(LdContainerKind.list)
+//  def set = container(LdContainerKind.set)
 
-  def map[T1](f: T => T1): Self[T1] = decoderFactory[T1]((mdl: JsonLdModel) => decode(mdl).map(f))
+  def map[T1](f: T => T1): LdDecodeSelf[T1] = decoderFactory[T1]((mdl: JsonLdModel) => decode(mdl).map(f))
 
-  def flatMap[T1](f: T => LdDecode[T1]): Self[T1] = decoderFactory[T1]((mdl: JsonLdModel) => decode(mdl).flatMap(itm => {
+  def flatMap[T1](f: T => LdDecode[T1]): LdDecodeSelf[T1] = decoderFactory[T1]((mdl: JsonLdModel) => decode(mdl).flatMap(itm => {
     f.apply(itm).decode(mdl)
   }))
 
@@ -47,7 +47,7 @@ object LdDecode extends LdDecodes {
   class LdDecodeException(from:Any, targetDescription:String) extends Exception(s"cant convert $from to $targetDescription")
   
   class BaseLdDecode {
-    type Self[T1] = LdDecode[T1]
+    type LdDecodeSelf[T1] = LdDecode[T1]
     def  decoderFactory[T1](f: JsonLdModel => Throwable \/ T1):LdDecode[T1] = LdDecode(f)
   }
   
@@ -137,6 +137,18 @@ object LdDecode extends LdDecodes {
       }
     }  
   }
+  
+  def container[T](ck: LdContainerKind)(implicit dec:LdDecode[T]): LdDecode[Seq[T]] = {
+    LdDecode[Seq[T]] { v: JsonLdModel =>
+      v match {
+        case LdContainer(kind, lst, _) => Util.rightValueSeq(lst.map(dec.decode))
+        case _ => -\/(new LdDecode.LdDecodeException(v,"container"))
+      }
+    }
+  }
+  
+  def list[T](implicit dec:LdDecode[T]) = container[T](LdContainerKind.list)
+  def set[T](implicit dec:LdDecode[T]) = container[T](LdContainerKind.set)
 }
 
 trait LdFieldDecode[T] {
@@ -235,7 +247,7 @@ object LdFieldDecode {
   }
   
   def list[T](fld: Path)(implicit dec: LdDecode[T]): GenericLdFieldDecode[Seq[JsonLdModel], Seq[T]] =
-    apply(fld)(dec.list)
+    apply(fld)(LdDecode.list(dec))
 
   def apply[T](fld: Path)(implicit dec: LdDecode[T]): GenericLdFieldDecode[Seq[JsonLdModel], T] = {
     singleElement[T](LdField(fld))(LdDecode.withError[T](verr => new LdFieldException(LdField(fld), verr))) //  s"Error reading property $fld: $verr"))
