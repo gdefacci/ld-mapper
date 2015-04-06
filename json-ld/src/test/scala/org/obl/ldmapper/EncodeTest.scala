@@ -4,7 +4,6 @@ import org.obl.raz._
 import org.junit.Test
 import junit.framework.TestCase
 import org.obl.ldmapper.NodeId.apply
-import org.obl.raz.BasePath.toAbsolutePathFactory
 import org.obl.raz.BasePath.toPathSegmentAdder
 
 import scalaz.{-\/, \/, \/-}
@@ -15,7 +14,7 @@ class EncodeTest extends TestCase {
   case class Minni(name: String, pluto: Pluto, nicks: Seq[String])
   case class Pluto(name: String, age: Int)
 
-  val r = (Raz / "myapp").at(HTTP("my-site.com"))
+  val r = HTTP("my-site.com") / "myapp"
 
   def checkSym[T](m:T, enc:LdEncode[T], dec:LdDecode[T]) {
 	    var ld = enc.tryEncode(m).toOption.get

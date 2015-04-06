@@ -5,7 +5,7 @@ import com.earldouglas.xsbtwebplugin.WebPlugin.webSettings
 
 object JsonLdBuild extends Build {
 
-  val scalaBuildVersion = "2.11.5"
+  val scalaBuildVersion = "2.11.6"
 
 	lazy val sharedSettings = Defaults.defaultSettings ++ Seq(
 		version := "0.1.0",
@@ -13,11 +13,13 @@ object JsonLdBuild extends Build {
 		scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
     libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % "test",
     testOptions += Tests.Argument(TestFrameworks.JUnit,  "-v"),
-    crossScalaVersions := Seq("2.11.5"),
-    resolvers += "m2 cental" at "http://central.maven.org/maven2/"
+    crossScalaVersions := Seq(scalaBuildVersion),
+    resolvers += "m2 cental" at "http://central.maven.org/maven2/",
+    
+    organization := "org.obl"
 	)
 	
-  val razDep = "org.obl" %% "raz" % "0.6-SNAPSHOT"
+  val razDep = "org.obl" %% "raz" % "0.7-SNAPSHOT"
 
   val servletDep = "javax.servlet" % "servlet-api" % "2.5" % "provided"
     
@@ -40,12 +42,22 @@ object JsonLdBuild extends Build {
 		id = "json-ld",
 		base = file("json-ld"),
 		settings = sharedSettings ++ Seq(
-          organization := "org.obl",
           libraryDependencies += shapelessDep,
           libraryDependencies += javaJsonLd,
           libraryDependencies += razDep
         )
 	) 
+  
+   lazy val hydraProject = Project(
+		id = "json-ld-hydra",
+		base = file("json-ld-hydra"),
+		settings = sharedSettings ++ Seq(
+          //libraryDependencies += javaJsonLd,
+          //libraryDependencies += razDep,
+          //libraryDependencies += shapelessDep
+        )
+	)  dependsOn jsonLdProject
+ 
     
   lazy val root= Project(
 		id = "json-ld-root",
@@ -53,6 +65,6 @@ object JsonLdBuild extends Build {
     settings = sharedSettings ++ Seq(
       organization := "org.obl"
     )
-  ) aggregate(jsonLdProject)
+  ) aggregate(jsonLdProject, hydraProject)
 
 }

@@ -3,31 +3,42 @@ package org.obl.ldmapper
 import org.obl.raz.Path
 import scalaz.{ -\/, \/, \/- }
 
+import scala.language.higherKinds
+
 trait LdEncode[T] {
 
   def tryEncode(t: T): Throwable \/ JsonLdModel
   
   def encode(t:T):JsonLdModel = tryEncode(t).getOrElse( throw new Exception("cant encode "+t) )
 
-  def contramap[T1](f: T1 => T) = LdEncode[T1]((t1: T1) => tryEncode(f(t1)))
+  def contramap[T1](f: T1 => T):Self[T1] = encoderFactory[T1]((t1: T1) => tryEncode(f(t1)))
 
-  private def container(knd: LdContainerKind): LdEncode[Seq[T]] =
-    LdEncode[Seq[T]]((sq: Seq[T]) => Util.rightValueSeq(sq.map(tryEncode)).map{ v => 
+  private def container(knd: LdContainerKind): Self[Seq[T]] =
+    encoderFactory((sq: Seq[T]) => Util.rightValueSeq(sq.map(tryEncode)).map{ v => 
       LdContainer(knd, v, None)
     })
 
-  def set: LdEncode[Seq[T]] = container(LdContainerKind.set)
-  def list: LdEncode[Seq[T]] = container(LdContainerKind.list)
+  def set: Self[Seq[T]] = container(LdContainerKind.set)
+  def list: Self[Seq[T]] = container(LdContainerKind.list)
+  
+  type Self[T1] <: LdEncode[T1]
+  protected def encoderFactory[T1](f: T1 => Throwable \/ JsonLdModel):Self[T1]
+  
 }
 
 object LdEncode extends LdEncodes {
 
+  class BaseLdEncode[T] {
+    type Self[T1] = LdEncode[T1]
+    def encoderFactory[T1](f: T1 => Throwable \/ JsonLdModel):LdEncode[T1] = LdEncode[T1](f)
+  }
+  
   def apply[T](f: T => Throwable \/ JsonLdModel) =
-    new LdEncode[T] {
+    new BaseLdEncode[T] with LdEncode[T] {
       def tryEncode(t: T): Throwable \/ JsonLdModel = Util.disjFlatten( \/.fromTryCatch( f(t) ) ) 
     }
 
-  def jsonLdModel = new LdEncode[JsonLdModel] {
+  def jsonLdModel = new BaseLdEncode[JsonLdModel] with LdEncode[JsonLdModel] {
     def tryEncode(t: JsonLdModel): Throwable \/ JsonLdModel = \/-(t)
   }
   
@@ -93,8 +104,6 @@ object LdEncode extends LdEncodes {
     prepend[T]((t: T) => \/-(Seq(JsonLdFieldValue(TypeJsonLdField, pth(t)))), d)
   }
 
-//  def set[T](implicit ec: LdEncode[T]): LdEncode[Seq[T]] = ec.set
-
   def linkTo[T](pathExtract: T => NodeId): LdEncode[T] = {
     LdEncode[T] { t: T =>
       val lnk: NodeId = pathExtract(t)
@@ -159,9 +168,6 @@ object LdFieldEncode {
   
   def set = jsonLdField(SetJsonLdField)
 
-//  def set[T](nd: Path)(implicit ec: LdEncode[T]): LdFieldEncode[Seq[T]] =
-//    LdFieldEncode.apply[Seq[T]](nd)(ec.set)
-
   def set[T](nd:Path)(implicit ec:LdEncode[T]):LdFieldEncode[Seq[T]] =
     LdFieldEncode[Seq[T]]((ts:Seq[T]) => { 
       val r:Throwable \/ Seq[JsonLdModel] = Util.rightValueSeq(ts.map { t =>
@@ -187,6 +193,8 @@ object LdFieldEncode {
     }
   }
 
+  def field[T](nd: Path, ec: LdEncode[T]): LdFieldEncode[T] = apply(nd)(ec)
+    
   def apply[T](nd: Path)(implicit ec: LdEncode[T]): LdFieldEncode[T] =
     LdFieldEncode[T]((t: T) => {
       val encv = ec.tryEncode(t)

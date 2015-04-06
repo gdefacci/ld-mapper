@@ -43,7 +43,7 @@ class MappingTest extends TestCase with LdConversions {
     implicit lazy val personEncode = person.toLdEncode.contramap[OutPerson](OutPerson.unapply(_).get)
     implicit lazy val personDecode = person.toLdDecode.map(InPerson.tupled)
 
-    val pers1 = OutPerson(Raz / "id", "my name", Raz / "myHomepage", Raz / "img", Raz / "openid")
+    val pers1 = OutPerson(RelativePath / "id", "my name", RelativePath / "myHomepage", RelativePath / "img", RelativePath / "openid")
 
     val ldv = toJsonLd(pers1)
     
@@ -64,7 +64,7 @@ class MappingTest extends TestCase with LdConversions {
 """
 
     str.parseJsonLd[InPerson] match {
-      case scalaz.\/-(v) => assert(v == InPerson("my name", Raz / "myHomepage", Raz / "img", Raz / "openid"))
+      case scalaz.\/-(v) => assert(v == InPerson("my name", RelativePath / "myHomepage", RelativePath / "img", RelativePath / "openid"))
       case _ => ???
     }
 

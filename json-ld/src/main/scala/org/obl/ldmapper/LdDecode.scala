@@ -3,20 +3,26 @@ package org.obl.ldmapper
 import org.obl.raz.Path
 import scalaz.{ -\/, \/, \/- }
 
+import scala.language.higherKinds
+
 trait LdDecode[T] {
   def decode(j: JsonLdModel): Throwable \/ T
 
-  private def container(ck: LdContainerKind): LdDecode[Seq[T]] = {
-    LdDecode.partial[Seq[T]]("json ld " + ck, {
-      case LdContainer(kind, lst, _) => {
-        Util.rightValueSeq(lst.map(this.decode))
+  type Self[T1] <: LdDecode[T1]
+  def  decoderFactory[T1](f: JsonLdModel => Throwable \/ T1):Self[T1]
+  
+  private def container(ck: LdContainerKind): Self[Seq[T]] = {
+    decoderFactory[Seq[T]] { v: JsonLdModel =>
+      v match {
+        case LdContainer(kind, lst, _) => Util.rightValueSeq(lst.map(this.decode))
+        case _ => -\/(new LdDecode.LdDecodeException(v,"container"))
       }
-    })
+    }
   }
 
-  def orElse(othr: => LdDecode[T]): LdDecode[T] = {
+  def orElse(othr: => LdDecode[T]): Self[T] = {
     val self = this
-    LdDecode[T] { mdl: JsonLdModel =>
+    decoderFactory[T] { mdl: JsonLdModel =>
       self.decode(mdl) match {
         case r @ \/-(_) => r
         case els => {
@@ -29,9 +35,9 @@ trait LdDecode[T] {
   def list = container(LdContainerKind.list)
   def set = container(LdContainerKind.set)
 
-  def map[T1](f: T => T1): LdDecode[T1] = LdDecode[T1]((mdl: JsonLdModel) => decode(mdl).map(f))
+  def map[T1](f: T => T1): Self[T1] = decoderFactory[T1]((mdl: JsonLdModel) => decode(mdl).map(f))
 
-  def flatMap[T1](f: T => LdDecode[T1]): LdDecode[T1] = LdDecode[T1]((mdl: JsonLdModel) => decode(mdl).flatMap(itm => {
+  def flatMap[T1](f: T => LdDecode[T1]): Self[T1] = decoderFactory[T1]((mdl: JsonLdModel) => decode(mdl).flatMap(itm => {
     f.apply(itm).decode(mdl)
   }))
 
@@ -40,8 +46,13 @@ trait LdDecode[T] {
 object LdDecode extends LdDecodes {
   class LdDecodeException(from:Any, targetDescription:String) extends Exception(s"cant convert $from to $targetDescription")
   
+  class BaseLdDecode {
+    type Self[T1] = LdDecode[T1]
+    def  decoderFactory[T1](f: JsonLdModel => Throwable \/ T1):LdDecode[T1] = LdDecode(f)
+  }
+  
   def apply[T](f: JsonLdModel => Throwable \/ T) = {
-    new LdDecode[T] {
+    new BaseLdDecode with LdDecode[T] {
       def decode(j: JsonLdModel): Throwable \/ T = f(j)
     }
   }

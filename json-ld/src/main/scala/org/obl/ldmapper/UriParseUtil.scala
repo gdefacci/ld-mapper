@@ -18,14 +18,12 @@ object UriParseUtil {
     Try(new java.net.URI(decodeUrl(str))).toOption
   }
 
-  def parseNonFragmentUrl(str:String):Option[BasePath[RelativePathAspect, NonFragmentPath, CanHavePrefixAspect]] = {
-    parseUrl(str).flatMap { p =>
-      p.fragment match {
-        case None => Some(BasePath[RelativePathAspect, NonFragmentPath, CanHavePrefixAspect](p.base, p.path, p.params, None))
-        case _ => None
-      }
-    }
-  }
+//  def parseNonFragmentUrl(str:String):Option[BasePath[PathPosition, ParamPosition]] = {
+//    parseUrl(str) match {
+//      case Path(None, pth, pars, None) => Some(RelativePath(pth, pars))
+//      case Path(Some(base), pth, pars, None) => Some(AbsolutePath(base, pth, pars))
+//    }
+//  }
   
   def parseUrl(str: String): Option[Path] = {
     if (str.trim.length == 0) None
@@ -66,6 +64,7 @@ object UriParseUtil {
         }
 
       val fragment = Option(uri.getFragment)
+      
       Path(base, PathSg(pathParts.toList), params, fragment)
     }
   }

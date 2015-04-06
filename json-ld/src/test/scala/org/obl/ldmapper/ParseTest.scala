@@ -2,9 +2,6 @@ package org.obl.ldmapper
 
 import org.obl.raz._
 import org.junit.Test
-import org.obl.raz.BasePath.toAbsolutePathFactory
-import org.obl.raz.BasePath.toFragmentAdder
-import org.obl.raz.BasePath.toPathSegmentAdder
 import junit.framework.TestCase
 
 class ParseTest extends TestCase {
@@ -38,11 +35,11 @@ class ParseTest extends TestCase {
     val xmlNsCom = HTTP("xmlns.com")
     val exampleOrg = HTTP("example.org")
     
-    val foaf = (Raz / "foaf" / "0.1").at(xmlNsCom)
+    val foaf = xmlNsCom / "foaf" / "0.1"
     
     val r = LdReader.fromString().read(str, LdReadStrategy.Expanded).toOption.get
     
-    assert( r.id.get.render ==  ((Raz / "people") ## "joebob").at(exampleOrg).render )
+    assert( r.id.get.render ==  (exampleOrg / "people" &# "joebob").render )
     assert( r.language.get ==  Language("it") )
     assert( r.index.get ==  "it" )
     assert( r.ldtype ==  Set(PathNodeId(foaf / "Person")) )

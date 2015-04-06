@@ -15,7 +15,7 @@ class DecodeJsonLdTest {
   @Test
   def decodeComposite(): Unit = {
     
-    val base = (Raz / "base") at HTTP("www.mysite.com")
+    val base = HTTP("www.mysite.com") / "base"
 
     val cd = LdDecode(
       LdFieldDecode[Int](base / "p1"),
