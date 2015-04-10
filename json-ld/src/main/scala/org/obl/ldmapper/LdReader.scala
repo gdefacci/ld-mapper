@@ -11,6 +11,19 @@ import Util.rightValueSeq
 
 import collection.JavaConversions._
 
+trait LdReadOptions {
+  def readPrefix:String
+  def ldReadStrategy:LdReadStrategy  
+}
+
+object LdReadOptions  {
+  def apply(prefix:String, readStrategy:LdReadStrategy = LdReadStrategy.Expanded) =
+    new LdReadOptions {
+      lazy val readPrefix:String = prefix
+      lazy val ldReadStrategy:LdReadStrategy = readStrategy
+    }
+}
+
 private[ldmapper] class LdObj(prefix:String, mp:Map[String,Any]) {
   private val Ld = JsonLdField
 
@@ -107,8 +120,15 @@ private[ldmapper] class LdFieldValueFactory(toJsonLd:Any => Throwable \/ JsonLdM
 
 object LdReader {
   
-  def fromString(prefix:String = "@") = new LdReader[String](prefix, str =>  \/.fromTryCatch( JsonUtils.fromString(str) ) )
-  def fromReader(prefix:String = "@") = new LdReader[java.io.Reader](prefix, str =>  \/.fromTryCatch( JsonUtils.fromReader(str) ) )
+  def parseJsonLd[T](v: String)(implicit readOptions: LdReadOptions, ej: LdDecode[T]): Throwable \/ T =
+    LdReader.fromString(readOptions).read(v).flatMap(jsonModel => ej.decode(jsonModel))
+  
+  def parseJsonLd[T](v: String, ej: LdDecode[T])(implicit readOptions: LdReadOptions): Throwable \/ T =
+    LdReader.fromString(readOptions).read(v).flatMap(jsonModel => ej.decode(jsonModel))
+    
+    
+  def fromString(implicit ldReadOptions:LdReadOptions) = new LdReader[String](ldReadOptions.readPrefix, ldReadOptions.ldReadStrategy, str =>  \/.fromTryCatch( JsonUtils.fromString(str) ) )
+  def fromReader(implicit ldReadOptions:LdReadOptions) = new LdReader[java.io.Reader](ldReadOptions.readPrefix, ldReadOptions.ldReadStrategy, str =>  \/.fromTryCatch( JsonUtils.fromReader(str) ) )
   
 }
 
@@ -150,7 +170,7 @@ object LdReadStrategy {
   }
 }
 
-class LdReader[I](prefix:String, parser:I => (Throwable \/ Object)) {
+class LdReader[I](prefix:String, strategy:LdReadStrategy, parser:I => (Throwable \/ Object)) {
 
   private lazy val fieldValueFactory = new LdFieldValueFactory(toJsonLdModel)
   
@@ -214,12 +234,12 @@ class LdReader[I](prefix:String, parser:I => (Throwable \/ Object)) {
     
   }
   
-  def read(i:I, strategy:LdReadStrategy):Throwable \/ JsonLdModel = {
+  def read(i:I):Throwable \/ JsonLdModel = {
     parser(i).flatMap(p => strategy(p, toJsonLdModel))
   }
   
-  def decode[T](i:I, strategy:LdReadStrategy)(ld:LdDecode[T]):Throwable \/ T = {
-    read(i, strategy).flatMap(ld.decode(_))
+  def decode[T](i:I)(ld:LdDecode[T]):Throwable \/ T = {
+    read(i).flatMap(ld.decode(_))
   }
   
 }

@@ -1,6 +1,7 @@
 package org.obl.ldmapper
 package builder
 
+import scalaz.\/-
 import shapeless._
 
 trait HRead[H <: HList, ET] {
@@ -8,6 +9,12 @@ trait HRead[H <: HList, ET] {
 }
 
 object HRead {
+  
+  implicit lazy val toLdDecode0:HRead[HNil.type, Void]  = new HRead[HNil.type, Void] {
+      def apply(h: HNil.type): LdDecode[Void] = LdDecode[Void] { m:JsonLdModel =>
+        \/-(null.asInstanceOf[Void])
+      }
+    }
 
   def apply[H <: HList, ET](f: H => LdDecode[ET]) =
     new HRead[H, ET] {

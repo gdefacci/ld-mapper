@@ -5,7 +5,7 @@ import builder._
 import junit.framework.TestCase
 import org.junit.Test
 
-class MergeEncodeTest extends TestCase with LdConversions {
+class MergeEncodeTest extends TestCase {
 
   def jsonLdPrefix: String = "@"
   
@@ -37,11 +37,12 @@ class MergeEncodeTest extends TestCase with LdConversions {
     val i1 = InfoA("str a1", 12)
     val i2 = InfoB("str a2", "c prop")
     
+    implicit val writeOpts = LdPrintOptions("@", false)
     implicit val me = LdMergeEncode.merge(infAEnc, infBEnc)
     
     val exp = """{"http://myapp.com/c":["c prop"],"http://myapp.com/b":[12.0],"http://myapp.com/a":["str a1","str a2"]}"""
     
-    assert( (i1 -> i2).jsonLdRender() == exp )
+    assert( LdPrinter.render(i1 -> i2) == exp )
     
   }
   

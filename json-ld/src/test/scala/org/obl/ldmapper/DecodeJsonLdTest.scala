@@ -10,7 +10,7 @@ class DecodeJsonLdTest {
 
   def fail[T](e: Throwable): T = throw e
 
-  lazy val reader = LdReader.fromString()
+  lazy val reader = LdReader.fromString(LdReadOptions("@", LdReadStrategy.Expanded))
 
   @Test
   def decodeComposite(): Unit = {
@@ -30,7 +30,7 @@ class DecodeJsonLdTest {
     }
       """
 
-    reader.decode(rawLd, LdReadStrategy.Expanded)(cd).fold(
+    reader.decode(rawLd)(cd).fold(
       err => fail(err),
       v => assert((12, "nmfds fdsfsd", true) == v))
 
@@ -42,7 +42,7 @@ class DecodeJsonLdTest {
     }
       """
 
-    reader.decode(rawLd1, LdReadStrategy.Expanded)(cd).fold(
+    reader.decode(rawLd1)(cd).fold(
       err => fail(err),
       v => assert((12, "nmfds fdsfsd", true) == v))
 
@@ -54,7 +54,7 @@ class DecodeJsonLdTest {
     }
       """
 
-    reader.decode(rawLd2, LdReadStrategy.Expanded)(cd).fold(
+    reader.decode(rawLd2)(cd).fold(
       err => (),
       v => ???)
 

@@ -36,8 +36,9 @@ class ParseTest extends TestCase {
     val exampleOrg = HTTP("example.org")
     
     val foaf = xmlNsCom / "foaf" / "0.1"
+    val readOpts = LdReadOptions("@", LdReadStrategy.Expanded)
     
-    val r = LdReader.fromString().read(str, LdReadStrategy.Expanded).toOption.get
+    val r = LdReader.fromString(readOpts).read(str).toOption.get
     
     assert( r.id.get.render ==  (exampleOrg / "people" &# "joebob").render )
     assert( r.language.get ==  Language("it") )
@@ -63,7 +64,7 @@ class ParseTest extends TestCase {
     
     
     val sw = new java.io.StringWriter()
-    new LdPrinter("@").print(r, sw, false)
+    new LdPrinter(LdPrintOptions("@", false)).print(r, sw)
     assert( 
         sw.getBuffer().toString() ==
         """{"@id":"http://example.org/people#joebob","@type":["http://xmlns.com/foaf/0.1/Person"],"@language":"it","@index":"it","http://xmlns.com/foaf/0.1/nick":[{"@list":["joe","bob","joe","jaybee"]},{"@list":["pluto","minni"]},{"@language":"it","@index":"de","http://xmlns.com/foaf/0.1/name":["Razy"]}],"http://xmlns.com/foaf/0.1/name":["Joe Bob"]}"""      

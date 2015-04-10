@@ -5,9 +5,7 @@ import builder._
 import junit.framework.TestCase
 import org.junit.Test
 
-import ToLd._
-
-class MappingTest extends TestCase with LdConversions {
+class MappingTest extends TestCase  {
 
   def jsonLdPrefix: String = "@"
 
@@ -45,12 +43,14 @@ class MappingTest extends TestCase with LdConversions {
 
     val pers1 = OutPerson(RelativePath / "id", "my name", RelativePath / "myHomepage", RelativePath / "img", RelativePath / "openid")
 
-    val ldv = toJsonLd(pers1)
+    val ldv = LdPrinter.toJsonLd(pers1)
     
     assert(ldv.obj.nonEmpty)
+ 
+    implicit val ldPrintOptions = LdPrintOptions("@", false)
+    implicit val ldReadOptions = LdReadOptions("@")
     
-    
-    assert(pers1.jsonLdRender() ==
+    assert( LdPrinter.render(pers1) ==
       """{"@id":"/id","http://xmlns.com/foaf/0.1/openid":["/openid"],"http://xmlns.com/foaf/0.1/homepage":["/myHomepage"],"http://xmlns.com/foaf/0.1/name":["my name"],"http://xmlns.com/foaf/0.1/img":["/img"]}""")
 
     val str = """
@@ -63,7 +63,7 @@ class MappingTest extends TestCase with LdConversions {
 }
 """
 
-    str.parseJsonLd[InPerson] match {
+    LdReader.parseJsonLd[InPerson](str) match {
       case scalaz.\/-(v) => assert(v == InPerson("my name", RelativePath / "myHomepage", RelativePath / "img", RelativePath / "openid"))
       case _ => ???
     }

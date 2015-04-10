@@ -5,7 +5,7 @@ import builder._
 import junit.framework.TestCase
 import org.junit.Test
 
-class MergeDecodeTest extends TestCase with LdConversions {
+class MergeDecodeTest extends TestCase {
 
   def jsonLdPrefix: String = "@"
   
@@ -32,6 +32,7 @@ class MergeDecodeTest extends TestCase with LdConversions {
   @Test
   def test1 = {
     val md = LdMergeDecode.mergeDecode(decA, decB)    
+    implicit val readOpts = LdReadOptions("@")
     
     val rawLd = """
     {
@@ -41,7 +42,7 @@ class MergeDecodeTest extends TestCase with LdConversions {
     }
       """
 
-    rawLd.parseJsonLd(md) match {
+    LdReader.parseJsonLd(rawLd, md) match {
       case scalaz.\/-((InfoA("str a", 12), InfoB("str a", "str c"))) => ()
       case _ => ???
     } 

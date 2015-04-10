@@ -133,6 +133,8 @@ class EncodeTest extends TestCase {
     
     checkSym(cl0, cl0Enc, cl0Dec)
   }
+  
+  implicit val ldPrintOptions = LdPrintOptions("@", true)
 
   @Test
   def test1: Unit = {
@@ -142,8 +144,7 @@ class EncodeTest extends TestCase {
 
     val minniLd = minniEnc.tryEncode(minni).toOption.get
 
-    val sw = new java.io.StringWriter()
-    new LdPrinter("@").print(minniLd, sw, true)
+    println( LdPrinter.print(minniLd) )
     
     checkSym(minni, minniEnc, minniDec)
   }
@@ -155,11 +156,11 @@ class EncodeTest extends TestCase {
     val minni = Minni("minni", Pluto("pluto", 12), Seq("mo", "ea"))
 
     val minniLd = minniEnc.tryEncode(minni).toOption.get
+    
+    implicit val ldPrintOptions = LdPrintOptions("@", false)
 
-    val sw = new java.io.StringWriter()
-    new LdPrinter("@").print(minniLd, sw, false)
     assert(
-      sw.getBuffer().toString ==
+      LdPrinter.print(minniLd) ==
       """{"http://my-site.com/myapp/nick":["mo","ea"],"http://my-site.com/myapp/name":["minni"],"http://my-site.com/myapp/pluto":[{"@id":"http://my-site.com/myapp/pluto/pluto"}]}"""     
     )
   }
@@ -172,8 +173,7 @@ class EncodeTest extends TestCase {
 
     val minniLd = minniEnc.tryEncode(minni).toOption.get
 
-    val sw = new java.io.StringWriter()
-    new LdPrinter("@").print(minniLd, sw, true)
+    println( LdPrinter.print(minniLd) )
     
     checkSym(minni, minniEnc, minniDec)
   }

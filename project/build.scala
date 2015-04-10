@@ -18,8 +18,11 @@ object JsonLdBuild extends Build {
     
     organization := "org.obl"
 	)
-	
-  val razDep = "org.obl" %% "raz" % "0.7-SNAPSHOT"
+
+  val razVersion = "0.7-SNAPSHOT"  
+
+  val razDep = "org.obl" %% "raz" % razVersion
+  val razUnfilteredDep = "org.obl" %% "raz-unfiltered" % razVersion
 
   val servletDep = "javax.servlet" % "servlet-api" % "2.5" % "provided"
     
@@ -58,6 +61,22 @@ object JsonLdBuild extends Build {
         )
 	)  dependsOn jsonLdProject
  
+  
+   lazy val jsonLdWebProject = Project(
+      id = "json-ld-web",
+      base = file("json-ld-web"),
+      settings = sharedSettings ++ webSettings ++ Seq(
+          organization := "org.obl",
+          libraryDependencies += razDep,
+          libraryDependencies += razUnfilteredDep,
+          libraryDependencies ++= unfilteredDeps,
+          libraryDependencies ++= Seq(
+            "org.eclipse.jetty" % "jetty-webapp" % "9.1.0.v20131115" % "container",
+            "org.eclipse.jetty" % "jetty-plus"   % "9.1.0.v20131115" % "container"
+          )
+        )
+	) dependsOn (jsonLdProject, hydraProject)
+
     
   lazy val root= Project(
 		id = "json-ld-root",
@@ -65,6 +84,6 @@ object JsonLdBuild extends Build {
     settings = sharedSettings ++ Seq(
       organization := "org.obl"
     )
-  ) aggregate(jsonLdProject, hydraProject)
+  ) aggregate(jsonLdProject, hydraProject, jsonLdWebProject)
 
 }

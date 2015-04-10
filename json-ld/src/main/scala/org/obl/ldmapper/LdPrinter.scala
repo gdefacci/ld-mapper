@@ -1,5 +1,6 @@
 package org.obl.ldmapper
 
+import scalaz.{-\/, \/, \/-}
 import com.fasterxml.jackson.core._
 import java.io.Writer
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
@@ -8,18 +9,43 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter.NopIndenter
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter.Lf2SpacesIndenter
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter.FixedSpaceIndenter
 
-object LdPrinter {
-  def print(t:JsonLdModel, prefix:String = "@", pretty:Boolean = true):String = {
-    Util.use(new java.io.StringWriter()) { sw =>
-    	new LdPrinter(prefix).print(t, sw, pretty)
-    	sw.getBuffer.toString
-    }
+trait LdPrintOptions {
+  def printPrefix:String
+  def pretty:Boolean
+}
+
+object LdPrintOptions {
+  def apply(prefix:String, prettyPrint:Boolean) = new LdPrintOptions {
+    lazy val printPrefix = prefix
+    lazy val pretty = prettyPrint
   }
 }
 
-class LdPrinter(prefix:String) {
+object LdPrinter {
+  def print(t:JsonLdModel)(implicit options:LdPrintOptions):String = {
+    Util.use(new java.io.StringWriter()) { sw =>
+    	new LdPrinter(options).print(t, sw)
+    	sw.getBuffer.toString
+    }
+  }
+  
+  def toJsonLd[T](v:T)(implicit ej: LdEncode[T]): JsonLdModel = ej.tryEncode(v) match {
+    case -\/(err) => throw new Exception(s"Error rendering to jsonld \nobject:$v\nerror:$err")
+    case \/-(v) => v
+  }
 
-  def print(m:JsonLdModel, out:Writer, pretty:Boolean):Unit = {
+  def render[T](v:T)(implicit ej: LdEncode[T], printOptions: LdPrintOptions): String = ej.tryEncode(v).map(mdl => LdPrinter.print(mdl)) match {
+    case -\/(err) => throw new Exception(s"Error rendering to jsonld \nobject:$v\nerror:$err")
+    case \/-(v) => v
+  }
+}
+
+class LdPrinter(options:LdPrintOptions) {
+
+  private lazy val pretty:Boolean = options.pretty
+  private lazy val prefix  = options.printPrefix
+  
+  def print(m:JsonLdModel, out:Writer):Unit = {
     val indenter = if (pretty) Lf2SpacesIndenter.instance else NopIndenter.instance
     val arrIndenter = if (pretty) FixedSpaceIndenter.instance else NopIndenter.instance
     val jackf = new JsonFactory()

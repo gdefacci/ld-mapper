@@ -1,6 +1,7 @@
 package org.obl.ldmapper
 package builder
 
+import scalaz.\/-
 import shapeless._
 
 trait HWrite[H <: HList, ET] {
@@ -8,6 +9,12 @@ trait HWrite[H <: HList, ET] {
 }
 
 object HWrite {
+  
+  implicit def toEncodeJsonLd0:HWrite[HNil.type, Void]  = new HWrite[HNil.type, Void] {
+      def apply(h: HNil.type): LdEncode[Void] = LdEncode[Void] { v:Void =>
+        \/-(null.asInstanceOf[JsonLdModel])
+      }
+    }
 
   def apply[H <: HList, ET](f: H => LdEncode[ET]) =
     new HWrite[H, ET] {
