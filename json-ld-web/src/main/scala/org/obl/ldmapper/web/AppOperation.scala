@@ -1,6 +1,6 @@
 package org.obl.ldmapper.web
 
-import org.obl.raz.{ PathDecoder }
+import org.obl.raz.{ PathDecoder, Path }
 import org.obl.ldmapper.{ LdDecode, LdEncode }
 import org.obl.ldmapper.hydra.Operation
 import scalaz.{ -\/, \/, \/- }
@@ -26,8 +26,8 @@ trait RequestMethodExtractor[U] {
   def apply(req: U): HttpMethod.Value
 }
 
-case class ReqModel[P, I](path: P, body: I)
-case class ImplReqModel[P, I, O, REQ](path: P, body: I, request:REQ, private val ldEncode:LdEncode[O]) {
+case class ReqModel[P, I](url:Path, path: P, body: I)
+case class ImplReqModel[P, I, O, REQ](url:Path, path: P, body: I, request:REQ, private val ldEncode:LdEncode[O]) {
   def valueOf[R](o:O)(implicit responseEncoder: ResponseEncoder[R], ldPrintOptions: LdPrintOptions):R = {
     responseEncoder(\/-( LdPrinter.print( ldEncode.encode(o) ) ))
   }
@@ -58,7 +58,7 @@ class AppOperation[P, I, O](pathDecoder: PathDecoder[P], supportedOperation: Ope
         val content = bodyExtract.body(req)
         val r = LdReader.fromString(ldReadOptions).read(content).flatMap { jsnMdl =>
           ldDecode.decode(jsnMdl).flatMap { o: I =>
-            val mdl = ReqModel(pth, o)
+            val mdl = ReqModel(currPath, pth, o)
             action(mdl)
           }
         }
@@ -84,7 +84,7 @@ class ImplAppOperation[P, I, O, REQ, RESP](pathDecoder: PathDecoder[P], supporte
         val content = bodyExtract.body(req)
         LdReader.fromString(ldReadOptions).read(content).flatMap { jsnMdl =>
           ldDecode.decode(jsnMdl).flatMap { o: I =>
-            val mdl = ImplReqModel[P,I,O,REQ](pth, o, req, ldEncode)
+            val mdl = ImplReqModel[P,I,O,REQ](currPath, pth, o, req, ldEncode)
             action(mdl)
           }
         }
